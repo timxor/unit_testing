@@ -1,6 +1,4 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-name: .NET
+name: .NET CI
 
 on:
   push:
@@ -9,22 +7,58 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+      - name: 🛠 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: 🔄 Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build unit_testing.sln --no-restore
+      - name: 🏗 Build main project
+        run: dotnet build unit_testing.csproj --no-restore --configuration Release
 
-    - name: Test
-      run: dotnet test unit_testing.sln --no-build --verbosity normal
+      - name: 🏗 Build test project
+        run: dotnet build unit_testing.Tests/unit_testing.Tests.csproj --no-restore --configuration Release
+
+      - name: ✅ Run tests with coverage and settings
+        run: |
+          dotnet test unit_testing.Tests/unit_testing.Tests.csproj \
+            --no-build \
+            --configuration Release \
+            --settings .runsettings \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage"
+
+      - name: 🗂 Upload raw test results (.trx and coverage)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-test-results
+          path: |
+            TestResults/
+            **/coverage.cobertura.xml
+
+      - name: 📊 Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: 📈 Generate HTML coverage report
+        run: |
+          reportgenerator \
+            -reports:**/coverage.cobertura.xml \
+            -targetdir:TestResults/CoverageReport \
+            -reporttypes:Html
+
+      - name: 📤 Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-code-coverage
+          path: TestResults/CoverageReport/
