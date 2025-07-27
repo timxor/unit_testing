@@ -23,10 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\unit_testing.csproj" />
   </ItemGroup>
 
